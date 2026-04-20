@@ -10,8 +10,8 @@ LAN_IP="${LAN_IP:-10.10.12.4}"
 LAN_URL="${LAN_URL:-http://ui.internal.dk/}"
 FALLBACK_URL="${FALLBACK_URL:-https://rmi.dk-automation.de/}"
 
-# Touch device (working fallback)
-TOUCH_EVENT="${TOUCH_EVENT:-/dev/input/event3}"
+# Touch device – stable symlink created by link-touchscreen.sh
+TOUCH_EVENT="${TOUCH_EVENT:-/dev/input/touchscreen}"
 
 # Display setup (your working config)
 PRIMARY_OUTPUT="${PRIMARY_OUTPUT:-VGA-1}"
@@ -84,6 +84,60 @@ for g in input video render seat; do
     addgroup "$KIOSK_USER" "$g" || true
   fi
 done
+
+e
+"==> Install link-touchscreen.sh (stable /dev/input/touchscreen symlink)"
+mkdir -p /usr/local/sbin
+
+cat > /usr/local/sbin/link-touchscreen.sh <<'SH'
+#!/bin/sh
+set -eu
+
+LINK="/dev/input/touchscreen"
+TARGET=""
+
+for ev in /sys/class/input/event*; do
+  [ -r "$ev/device/name" ] || continue
+  name="$(cat "$ev/device/name" 2>/dev/null || true)"
+
+  # Need an eGalax device …
+  echo "$name" | grep -qi "egalax" || continue
+  # … but NOT the high-level "… Touchscreen" node; we want the raw one
+  echo "$name" | grep -qi "touchscreen" && continue
+
+  base="$(basename "$ev")"   # e.g. event3
+  TARGET="/dev/input/$base"
+  break
+done
+
+if [ -z "$TARGET" ] || [ ! -e "$TARGET" ]; then
+  echo "link-touchscreen: no suitable eGalax RAW event found" >&2
+  exit 1
+fi
+
+mkdir -p /dev/input
+ln -sf "$TARGET" "$LINK"
+echo "link-touchscreen: $LINK -> $TARGET" >&2
+SH
+chmod +x /usr/local/sbin/link-touchscreen.sh
+
+e
+"==> Install udev rule so the symlink is re-created on every (re-)plug"
+mkdir -p /etc/udev/rules.d
+cat > /etc/udev/rules.d/99-touchscreen.rules <<'RULES'
+# Re-run link-touchscreen.sh whenever any eGalax input event node appears
+# so /dev/input/touchscreen always points to the correct raw device.
+SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="*[Ee][Gg]alax*", \
+    RUN+="/usr/local/sbin/link-touchscreen.sh"
+RULES
+
+# Apply rule immediately if udev is running; fail silently otherwise
+udevadm control --reload-rules 2>/dev/null || true
+udevadm trigger --subsystem-match=input 2>/dev/null || true
+
+# Also run once right now so the symlink is ready before X starts
+/usr/local/sbin/link-touchscreen.sh || true
+ls -l /dev/input/touchscreen 2>/dev/null || true
 
 e
 "==> Ensure Xorg config dir exists"
