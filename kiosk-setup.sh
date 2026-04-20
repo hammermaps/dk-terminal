@@ -136,6 +136,7 @@ udevadm control --reload-rules 2>/dev/null || true
 udevadm trigger --subsystem-match=input 2>/dev/null || true
 
 # Also run once right now so the symlink is ready before X starts
+echo "==> Creating /dev/input/touchscreen symlink (may fail if device is absent)"
 /usr/local/sbin/link-touchscreen.sh || true
 ls -l /dev/input/touchscreen 2>/dev/null || true
 
