@@ -136,7 +136,6 @@ ls -l /dev/input/touchscreen 2>/dev/null || true
 echo "==> Ensure Xorg config dir exists"
 mkdir -p /etc/X11/xorg.conf.d
 
-
 echo "==> Force Xorg to use fixed touch event device (no udev hotplug)"
 cat > /etc/X11/xorg.conf.d/10-serverflags-no-udev.conf <<'CONF'
 Section "ServerFlags"
@@ -305,7 +304,10 @@ CHROMIUM_EXTRA_FLAGS=""
 
 while true; do
   chromium \
+    --kiosk \
     --no-first-run \
+    --disable-infobars \
+    --disable-session-crashed-bubble \
     --disable-features=TranslateUI \
     --no-sandbox \
     --disable-gpu \
