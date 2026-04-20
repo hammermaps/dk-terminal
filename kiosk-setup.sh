@@ -242,9 +242,9 @@ LAN_URL="${LAN_URL}"
 FALLBACK_URL="${FALLBACK_URL}"
 DEBUG_PORT="${DEBUG_PORT}"
 
-INTERVAL="\$INTERVAL:-10}"
-NEEDED_OK="\$NEEDED_OK:-3}"
-NEEDED_FAIL="\$NEEDED_FAIL:-3}"
+INTERVAL="\${INTERVAL:-10}"
+NEEDED_OK="\${NEEDED_OK:-3}"
+NEEDED_FAIL="\${NEEDED_FAIL:-3}"
 
 ok=0
 fail=0
@@ -328,8 +328,7 @@ chown "$KIOSK_USER:$KIOSK_USER" "$KIOSK_HOME/.xinitrc"
 
 echo "==> Write kiosk .profile (autostart X on tty1 with emergency exit)"
 cat > "$KIOSK_HOME/.profile" <<'PROFILE'
-if [ -z "${DISPLAY:-}" ] && [ "
-$(tty)" = "/dev/tty1" ]; then
+if [ -z "${DISPLAY:-}" ] && [ "$(tty)" = "/dev/tty1" ]; then
   if [ -f "$HOME/.no-kiosk" ]; then
     echo "KIOSK disabled (found $HOME/.no-kiosk). Staying on console."
   else
@@ -342,8 +341,7 @@ chown "$KIOSK_USER:$KIOSK_USER" "$KIOSK_HOME/.profile"
 chmod 0644 "$KIOSK_HOME/.profile"
 
 echo "==> Configure autologin on tty1 via /etc/inittab (OpenRC)"
-AGETTY_PATH="
-$(command -v agetty || true)"
+AGETTY_PATH="$(command -v agetty || true)"
 if [ -z "$AGETTY_PATH" ]; then
   echo "ERROR: agetty not found even after installing util-linux."
   exit 1
