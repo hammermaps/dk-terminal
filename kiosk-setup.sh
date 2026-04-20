@@ -20,8 +20,7 @@ DISABLE_OUTPUT="${DISABLE_OUTPUT:-LVDS-1}"
 # Chromium DevTools port (local only)
 DEBUG_PORT="${DEBUG_PORT:-9222}"
 
-e
-"==> Ensure repositories (main+community) are enabled"
+echo "==> Ensure repositories (main+community) are enabled"
 if [ -f /etc/apk/repositories ]; then
   sed -i \
     -e "s|^#\\(.*alpine/${ALPINE_BRANCH}/main\\)$|\\1|g" \
@@ -36,8 +35,7 @@ fi
 
 apk update
 
-e
-"==> Install services and packages"
+echo "==> Install services and packages"
 apk add \
   eudev udev-init-scripts \
   elogind seatd \
@@ -58,8 +56,7 @@ apk add \
   python3 \
   py3-websockets
 
-e
-"==> Enable services"
+echo "==> Enable services"
 rc-update add udev default || true
 rc-update add udev-settle default || true
 rc-update add elogind default || true
@@ -71,22 +68,19 @@ rc-service elogind restart || true
 rc-service seatd restart || true
 rc-service crond start || true
 
-e
-"==> Create kiosk user if missing"
+echo "==> Create kiosk user if missing"
 if ! id "$KIOSK_USER" >/dev/null 2>&1; then
   adduser -D -h "$KIOSK_HOME" "$KIOSK_USER"
 fi
 
-e
-"==> Add kiosk user to groups (if they exist)"
+echo "==> Add kiosk user to groups (if they exist)"
 for g in input video render seat; do
   if getent group "$g" >/dev/null 2>&1; then
     addgroup "$KIOSK_USER" "$g" || true
   fi
 done
 
-e
-"==> Install link-touchscreen.sh (stable /dev/input/touchscreen symlink)"
+echo "==> Install link-touchscreen.sh (stable /dev/input/touchscreen symlink)"
 mkdir -p /usr/local/sbin
 
 cat > /usr/local/sbin/link-touchscreen.sh <<'SH'
@@ -121,8 +115,7 @@ echo "link-touchscreen: $LINK -> $TARGET" >&2
 SH
 chmod +x /usr/local/sbin/link-touchscreen.sh
 
-e
-"==> Install udev rule so the symlink is re-created on every (re-)plug"
+echo "==> Install udev rule so the symlink is re-created on every (re-)plug"
 mkdir -p /etc/udev/rules.d
 cat > /etc/udev/rules.d/99-touchscreen.rules <<'RULES'
 # Re-run link-touchscreen.sh whenever any eGalax input event node appears
@@ -140,13 +133,11 @@ echo "==> Creating /dev/input/touchscreen symlink (may fail if device is absent)
 /usr/local/sbin/link-touchscreen.sh || true
 ls -l /dev/input/touchscreen 2>/dev/null || true
 
-e
-"==> Ensure Xorg config dir exists"
+echo "==> Ensure Xorg config dir exists"
 mkdir -p /etc/X11/xorg.conf.d
 
 
-e
-"==> Force Xorg to use fixed touch event device (no udev hotplug)"
+echo "==> Force Xorg to use fixed touch event device (no udev hotplug)"
 cat > /etc/X11/xorg.conf.d/10-serverflags-no-udev.conf <<'CONF'
 Section "ServerFlags"
     Option "AutoAddDevices" "false"
@@ -170,8 +161,7 @@ EndSection
 CONF
 
 
-e
-"==> URL selector (ping + HTTP verify)"
+echo "==> URL selector (ping + HTTP verify)"
 cat > /usr/local/bin/select-start-url.sh <<SH
 #!/bin/sh
 set -eu
@@ -189,8 +179,7 @@ echo "\$FALLBACK_URL"
 SH
 chmod +x /usr/local/bin/select-start-url.sh
 
-e
-"==> DevTools navigate tool (Python websockets)"
+echo "==> DevTools navigate tool (Python websockets)"
 cat > /usr/local/bin/chromium-navigate.py <<'PY'
 #!/usr/bin/env python3
 import json
@@ -244,8 +233,7 @@ if __name__ == "__main__":
 PY
 chmod +x /usr/local/bin/chromium-navigate.py
 
-e
-"==> Watchdog (debounced ping+HTTP; navigates via DevTools)"
+echo "==> Watchdog (debounced ping+HTTP; navigates via DevTools)"
 cat > /usr/local/bin/chromium-devtools-watchdog.sh <<SH
 #!/bin/sh
 set -eu
@@ -294,8 +282,7 @@ done
 SH
 chmod +x /usr/local/bin/chromium-devtools-watchdog.sh
 
-e
-"==> Write kiosk .xinitrc (chromium + devtools watchdog)"
+echo "==> Write kiosk .xinitrc (chromium + devtools watchdog)"
 install -d -m 0755 -o "$KIOSK_USER" -g "$KIOSK_USER" "$KIOSK_HOME"
 
 cat > "$KIOSK_HOME/.xinitrc" <<XINIT
@@ -339,8 +326,7 @@ XINIT
 chmod +x "$KIOSK_HOME/.xinitrc"
 chown "$KIOSK_USER:$KIOSK_USER" "$KIOSK_HOME/.xinitrc"
 
-e
-"==> Write kiosk .profile (autostart X on tty1 with emergency exit)"
+echo "==> Write kiosk .profile (autostart X on tty1 with emergency exit)"
 cat > "$KIOSK_HOME/.profile" <<'PROFILE'
 if [ -z "${DISPLAY:-}" ] && [ "
 $(tty)" = "/dev/tty1" ]; then
@@ -355,8 +341,7 @@ PROFILE
 chown "$KIOSK_USER:$KIOSK_USER" "$KIOSK_HOME/.profile"
 chmod 0644 "$KIOSK_HOME/.profile"
 
-e
-"==> Configure autologin on tty1 via /etc/inittab (OpenRC)"
+echo "==> Configure autologin on tty1 via /etc/inittab (OpenRC)"
 AGETTY_PATH="
 $(command -v agetty || true)"
 if [ -z "$AGETTY_PATH" ]; then
@@ -376,8 +361,7 @@ else
   echo "WARN: /etc/inittab not found. Autologin not configured."
 fi
 
-e
-"==> Install weekly (Sunday) auto-upgrade cron job"
+echo "==> Install weekly (Sunday) auto-upgrade cron job"
 mkdir -p /usr/local/sbin
 
 cat > /usr/local/sbin/kiosk-upgrade.sh <<'SH'
